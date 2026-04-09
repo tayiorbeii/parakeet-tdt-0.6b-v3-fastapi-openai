@@ -19,20 +19,26 @@ import shutil
 import uuid
 import subprocess
 import datetime
+import argparse
 import psutil
 from typing import List, Tuple, Optional
 from werkzeug.utils import secure_filename
 from audio_utils import get_audio_duration
+from transcript_utils import srt_to_readable_text
 
 import flask
 from flask import Flask, request, jsonify, render_template, Response
 from waitress import serve
 from pathlib import Path
 
-ROOT_DIR = Path(os.getcwd()).as_posix()
-os.environ["HF_HOME"] = ROOT_DIR + "/models"
-os.environ["HF_HUB_CACHE"] = ROOT_DIR + "/models"
+ROOT_DIR = str(Path(os.getcwd()))
+MODELS_DIR = os.path.join(ROOT_DIR, "models")
+os.environ["HF_HOME"] = MODELS_DIR
+os.environ["HF_HUB_CACHE"] = MODELS_DIR
 os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "true"
+
+# Ensure the models directory exists before Hugging Face tries to use it.
+os.makedirs(MODELS_DIR, exist_ok=True)
 if sys.platform == "win32":
     os.environ["PATH"] = ROOT_DIR + f";{ROOT_DIR}/ffmpeg;" + os.environ["PATH"]
 
@@ -797,7 +803,80 @@ def openweb():
     webbrowser.open_new_tab(f"http://127.0.0.1:{port}")
 
 
+def get_direct_output_paths(input_path: Path) -> tuple[Path, Path]:
+    output_dir = input_path.parent
+    srt_path = output_dir / f"{input_path.stem}.srt"
+    txt_path = output_dir / f"{input_path.stem}-transcript.txt"
+    return srt_path, txt_path
+
+
+def transcribe_local_file(audio_path: str, model_name: str, response_format: str) -> int:
+    if not os.path.exists(audio_path):
+        print(f"Error: file not found: {audio_path}", file=sys.stderr)
+        return 1
+
+    with app.test_client() as client, open(audio_path, "rb") as audio_file:
+        response = client.post(
+            "/v1/audio/transcriptions",
+            data={
+                "file": (audio_file, os.path.basename(audio_path)),
+                "model": model_name,
+                "response_format": "srt",
+            },
+        )
+
+    if response.status_code >= 400:
+        print(response.get_data(as_text=True).strip(), file=sys.stderr)
+        return 1
+
+    srt_output = response.get_data(as_text=True).strip()
+    input_path = Path(audio_path)
+    srt_path, txt_path = get_direct_output_paths(input_path)
+
+    with open(srt_path, "w", encoding="utf-8") as srt_file:
+        srt_file.write(srt_output + ("\n" if not srt_output.endswith("\n") else ""))
+
+    txt_output = srt_to_readable_text(srt_output)
+    with open(txt_path, "w", encoding="utf-8") as txt_file:
+        txt_file.write(txt_output + ("\n" if txt_output and not txt_output.endswith("\n") else ""))
+
+    if response_format == "srt":
+        print(srt_output)
+    elif response_format == "json":
+        print(
+            json.dumps(
+                {"srt": str(srt_path), "txt": str(txt_path)},
+                indent=2,
+                ensure_ascii=False,
+            )
+        )
+    else:
+        print(txt_output)
+        print()
+        print(f"Saved SRT: {srt_path}")
+        print(f"Saved TXT: {txt_path}")
+    return 0
+
+
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Parakeet TDT transcription server and CLI")
+    parser.add_argument("audio_file", nargs="?", help="Optional audio file to transcribe directly")
+    parser.add_argument(
+        "--model",
+        default="parakeet-tdt-0.6b-v3",
+        help="Model name to use for direct transcription",
+    )
+    parser.add_argument(
+        "--response-format",
+        default="text",
+        choices=["json", "text", "srt", "verbose_json", "vtt"],
+        help="Output format for direct transcription",
+    )
+    args = parser.parse_args()
+
+    if args.audio_file:
+        raise SystemExit(transcribe_local_file(args.audio_file, args.model, args.response_format))
+
     print(f"Starting server...")
     print(f"Web interface: http://127.0.0.1:{port}")
     print(f"API Endpoint: POST http://{host}:{port}/v1/audio/transcriptions")
