@@ -28,6 +28,29 @@ huggingface-cli download istupakov/parakeet-tdt-0.6b-v3-onnx \
   --local-dir models/models--istupakov--parakeet-tdt-0.6b-v3-onnx
 ```
 
+You can also download the model files manually from the Hugging Face file tree:
+https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/tree/main
+
+Place all files from that page into:
+
+`models/models--istupakov--parakeet-tdt-0.6b-v3-onnx`
+
+Expected file tree:
+
+```text
+models/models--istupakov--parakeet-tdt-0.6b-v3-onnx/
+├── .gitattributes
+├── README.md
+├── config.json
+├── decoder_joint-model.int8.onnx
+├── decoder_joint-model.onnx
+├── encoder-model.int8.onnx
+├── encoder-model.onnx
+├── encoder-model.onnx.data
+├── nemo128.onnx
+└── vocab.txt
+```
+
 ## 🌍 Multilingual Support
 
 **Parakeet TDT 0.6B v3** features robust multilingual capabilities with **automatic language detection**. The model can automatically identify and transcribe speech in any of the **25 supported languages** without requiring manual language specification:
