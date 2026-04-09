@@ -7,6 +7,22 @@
 
 This implementation achieves exceptional real-time speeds, outperforming standard [openai/whisper](https://github.com/openai/whisper) and competing directly with GPU-accelerated [faster-whisper](https://github.com/SYSTRAN/faster-whisper) implementations while running entirely on consumer CPUs. The efficiency is achieved through the architectural advantages of the Token-and-Duration Transducer (TDT) model combined with 8-bit quantization.
 
+## Direct File Transcription
+
+You can pass a local audio or video file directly to `app.py` instead of starting the web server.
+
+```bash
+python app.py path/to/video.mp4
+```
+
+This will:
+
+- Transcribe the file locally
+- Write `path/to/video.srt`
+- Write `path/to/video-transcript.txt`
+
+The transcript text is formatted into readable blocks, and the output files are saved in the same directory as the source file.
+
 ## Model Install
 
 The app expects the ONNX model files under:
