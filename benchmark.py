@@ -14,32 +14,13 @@ import psutil
 import requests
 from pathlib import Path
 from datetime import datetime
+from audio_utils import get_audio_duration
 
 # Configuration
 API_URL = "http://127.0.0.1:5092/v1/audio/transcriptions"
 TEST_AUDIO_DIR = "/home/op/mp3"
 OUTPUT_DIR = "./benchmark_results"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
-
-
-def get_audio_duration(file_path: str) -> float:
-    """Get audio duration in seconds using ffprobe"""
-    command = [
-        "ffprobe",
-        "-v",
-        "error",
-        "-show_entries",
-        "format=duration",
-        "-of",
-        "default=noprint_wrappers=1:nokey=1",
-        file_path,
-    ]
-    try:
-        result = subprocess.run(command, capture_output=True, text=True, check=True)
-        return float(result.stdout)
-    except (subprocess.CalledProcessError, ValueError) as e:
-        print(f"Could not get duration of file '{file_path}': {e}")
-        return 0.0
 
 
 def get_file_size_mb(file_path: str) -> float:
